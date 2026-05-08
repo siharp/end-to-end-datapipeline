@@ -1,0 +1,2 @@
+apache-airflow-providers-amazon
+pandas==2.3.3
