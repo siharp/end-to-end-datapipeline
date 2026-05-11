@@ -1,0 +1,22 @@
+services:
+  clickhousedb:
+    image: clickhouse/clickhouse-server:25.5
+    ports:
+      - "8123:8123"
+      - "9005:9000"
+    volumes:
+      - ./clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-logs:/var/log/clickhouse-server
+      - ./clickhouse-config:/etc/clickhouse-server/config.d/*.xml
+      - ./clickhouse-user:/etc/clickhouse-server/users.d/*.xml
+    environment:
+      - CLICKHOUSE_DB=default_lake
+      - CLICKHOUSE_USER=default_user
+      - CLICKHOUSE_PASSWORD=default_password
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    networks:
+      - airflow_default
+
+networks:
+  airflow_default:
+    external: true
