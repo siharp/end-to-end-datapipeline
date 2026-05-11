@@ -1,0 +1,4 @@
+pymysql==1.1.2
+mysqlclient==2.2.8
+sqlalchemy<2.0
+clickhouse-connect>=0.13.0
