@@ -20,7 +20,7 @@ for item in os.listdir():
             df = pd.read_csv(item)
 
             # Cleaning nama tabel (contoh: 'orders_dataset.csv' -> 'orders')
-            table_name = item.split('.')[0].replace('_dataset', '')
+            table_name = item.split('.')[1:].replace('_dataset', '')
 
             # Upload menggunakan Pandas
             df.to_sql(
