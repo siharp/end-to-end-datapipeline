@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 MINIO_CONN_ID = "minio-connection"
 POSTGRES_CONN_ID = "postgres-connection"
-MINIO_BUCKET = "my-data"
+MINIO_BUCKET = "olist-data"
 CHUNK_SIZE = 10000
 
 tables_to_process = [
