@@ -12,8 +12,8 @@ MINIO_BUCKET = "my-data"
 MINIO_ENDPOINT = "http://minio-server:9000"
 
 with DAG(
-    dag_id='dynamic_postgres_to_minio',
-    start_date=datetime(2024, 5, 1),
+    dag_id='dynamic_task_postgres_to_minio',
+    start_date=datetime(2026, 5, 1),
     schedule_interval='@once',
     catchup=False
 ) as dag:

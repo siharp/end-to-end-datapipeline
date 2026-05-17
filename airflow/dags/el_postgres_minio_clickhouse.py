@@ -1,14 +1,18 @@
 import io
+import logging
 import pandas as pd
 import clickhouse_connect
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.decorators import task, task_group
+from airflow.decorators import dag, task, task_group
 from airflow.models import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import get_current_context
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from notifications.telegram import notify_failure, notify_success
+
+log = logging.getLogger(__name__)
 
 MINIO_CONN_ID = "minio-connection"
 POSTGRES_CONN_ID = "postgres-connection"
@@ -21,28 +25,36 @@ tables_to_process = [
     'order_payments', 'orders', 'products'
 ]
 
-with DAG(
+default_args = {
+    'retries': 3,
+    'retry_delay': timedelta(minutes=1),
+    'on_failure_callback': notify_failure,
+}
+
+
+@dag(
     dag_id='el_postgres_minio_clickhouse',
     start_date=datetime(2026, 5, 15),
     schedule_interval='@once',
     catchup=False,
     tags=['postgres', 'minio', 'clickhouse'],
     max_active_tasks=2,
-) as dag:
-
+    on_success_callback=notify_success,
+    default_args=default_args
+)
+def el_postgres_minio_clickhouse():
     start_pipeline = EmptyOperator(task_id='start_pipeline')
     end_pipeline = EmptyOperator(task_id='end_pipeline')
 
     @task_group(group_id='extract_all_tables_to_minio')
     def extract_group():
 
-        # ✅ Definisi fungsi di luar loop
         @task
         def extract_task(t_name: str):
             context = get_current_context()
             ds = context['ds']
             year, month, day = ds.split('-')
-
+            log.info(f"Mulai extract tabel: {t_name}")
             pg_hook = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
             s3_hook = S3Hook(aws_conn_id=MINIO_CONN_ID)
             conn = pg_hook.get_conn()
@@ -66,10 +78,11 @@ with DAG(
                             file_obj=buffer, key=chunk_key,
                             bucket_name=MINIO_BUCKET, replace=True
                         )
+                        log.info(f"Upload chunk {chunk_idx} → {chunk_key}")
             finally:
                 conn.close()
+            log.info(f"Selesai extract {t_name}, total chunk: {chunk_idx}")
 
-        # ✅ Loop hanya untuk override task_id dan memanggil
         for table in tables_to_process:
             extract_task.override(task_id=f"extract_{table}")(table)
 
@@ -82,30 +95,44 @@ with DAG(
             ds = context['ds']
             year, month, day = ds.split('-')
 
+            log.info(f"Mulai load tabel: {t_name}")
+
             ch_conf = Variable.get("clickhouse_config", deserialize_json=True)
-            # ✅ Ambil credentials dari S3Hook — satu sumber kebenaran
             s3_hook = S3Hook(aws_conn_id=MINIO_CONN_ID)
             creds = s3_hook.get_credentials()
             db_name = ch_conf.get('database')
 
-            client = clickhouse_connect.get_client(
-                host=ch_conf.get('host'),
-                port=ch_conf.get('port', 8123),
-                username=ch_conf.get('username'),
-                password=ch_conf.get('password'),
-                database=db_name
-            )
+            client = None
+            try:
+                client = clickhouse_connect.get_client(
+                    host=ch_conf.get('host'),
+                    port=ch_conf.get('port', 8123),
+                    username=ch_conf.get('username'),
+                    password=ch_conf.get('password'),
+                    database=db_name
+                )
+                try:
+                    s3_path = (
+                        f"http://minio-server:9000/{MINIO_BUCKET}/landing/"
+                        f"{t_name}/{year}/{month}/{day}/{t_name}_part_*.parquet"
+                    )
+                    query = (
+                        f"INSERT INTO {db_name}.{t_name} "
+                        f"SELECT * FROM s3('{s3_path}', "
+                        f"'{creds.access_key}', '{creds.secret_key}', 'Parquet')"
+                    )
+                    log.info(f"S3 path: {s3_path}")
+                    log.info(f"Query: {query}")
 
-            s3_path = (
-                f"http://minio-server:9000/{MINIO_BUCKET}/landing/"
-                f"{t_name}/{year}/{month}/{day}/{t_name}_part_*.parquet"
-            )
-            query = (
-                f"INSERT INTO {db_name}.{t_name} "
-                f"SELECT * FROM s3('{s3_path}', "
-                f"'{creds.access_key}', '{creds.secret_key}', 'Parquet')"
-            )
-            client.command(query)
+                    client.command(query)
+                    log.info(f"Berhasil load tabel: {t_name}")
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Gagal load tabel {t_name}: {e}") from e
+
+            finally:
+                if client:
+                    client.close()
 
         for table in tables_to_process:
             load_task.override(task_id=f"load_{table}")(table)
@@ -114,3 +141,6 @@ with DAG(
     load_tasks = load_group()
 
     start_pipeline >> extract_tasks >> load_tasks >> end_pipeline
+
+
+el_postgres_minio_clickhouse()
