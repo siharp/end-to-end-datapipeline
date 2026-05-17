@@ -136,7 +136,7 @@ def create_pipeline_dag(env: str, config: dict):
                     )
                     try:
                         s3_path = (
-                            f"http://minio-server:9000/{MINIO_BUCKET}/landing/{env}"
+                            f"http://minio-server:9000/{MINIO_BUCKET}/landing/{env}/"
                             f"{t_name}/{year}/{month}/{day}/{t_name}_part_*.parquet"
                         )
                         query = (
