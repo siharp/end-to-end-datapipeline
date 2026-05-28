@@ -1,0 +1,22 @@
+olist_warehouse:
+  target: prod
+  outputs:
+    dev:
+      type: clickhouse
+      schema: olist_dev
+      host: clickhouse-clickhousedb-1  
+      port: 8123   
+      user: default_user   
+      password: default_password 
+      secure: False
+    prod:
+      type: clickhouse
+      schema: olist_prod
+      host: clickhouse-clickhousedb-1  
+      port: 8123   
+      user: default_user   
+      password: default_password 
+      secure: False   
+
+
+# clickhouse-clickhousedb-1 

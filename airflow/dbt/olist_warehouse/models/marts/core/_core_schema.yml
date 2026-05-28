@@ -1,0 +1,219 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Date dimension generated from Olist order dates."
+    columns:
+      - name: date_day
+        data_tests:
+          - not_null
+          - unique
+      - name: year
+        data_tests:
+          - not_null
+      - name: month
+        data_tests:
+          - not_null
+      - name: is_weekend
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: dim_customers
+    description: "Customer dimension enriched with state, region and approximate geolocation."
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_unique_id
+        data_tests:
+          - not_null
+      - name: customer_state
+      - name: customer_region
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['southeast', 'south', 'northeast', 'center_west', 'north', 'unknown']
+
+  - name: dim_sellers
+    description: "Seller dimension enriched with state, region and approximate geolocation."
+    columns:
+      - name: seller_id
+        data_tests:
+          - not_null
+          - unique
+      - name: seller_state
+      - name: seller_region
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['southeast', 'south', 'northeast', 'center_west', 'north', 'unknown']
+
+  - name: dim_products
+    description: "Product dimension enriched with English category and product classes."
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_name_english
+        data_tests:
+          - not_null
+      - name: product_weight_class
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['unknown', 'light', 'medium', 'heavy']
+      - name: product_volume_cm3
+        data_tests:
+          - non_negative
+
+  - name: fct_orders
+    description: "Order fact table. Grain is one row per order."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: order_purchase_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: order_status
+        data_tests:
+          - not_null
+      - name: order_item_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_freight_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_total_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: is_delivered
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: is_late_delivery
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: fct_order_items
+    description: "Order item fact table. Grain is one row per order item line."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['order_id', 'order_item_id']
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: seller_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_sellers')
+                field: seller_id
+      - name: price
+        data_tests:
+          - not_null
+          - non_negative
+      - name: freight_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: item_total_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: fct_payments
+    description: "Payment fact table. Grain is one row per payment event."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['order_id', 'payment_sequential']
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: payment_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: fct_reviews
+    description: "Review fact table. Grain is one row per review record."
+    columns:
+      - name: review_id
+        data_tests:
+          - not_null
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: review_creation_date_day
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: review_score
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false

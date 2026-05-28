@@ -1,0 +1,201 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Clean customer table. One row per customer_id."
+    columns:
+      - name: customer_id
+        description: "Order-level customer key."
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_unique_id
+        description: "Stable customer identity across orders."
+        data_tests:
+          - not_null
+      - name: customer_zip_code_prefix
+      - name: customer_city
+      - name: customer_state
+
+  - name: stg_geolocation
+    description: "Clean geolocation reference. Multiple rows can exist per zip prefix."
+    columns:
+      - name: geolocation_zip_code_prefix
+        data_tests:
+          - not_null
+      - name: geolocation_lat
+      - name: geolocation_lng
+      - name: geolocation_city
+      - name: geolocation_state
+
+  - name: stg_orders
+    description: "Clean order headers with useful date flags. One row per order."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: order_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['created', 'approved', 'invoiced', 'processing', 'shipped', 'delivered', 'unavailable', 'canceled']
+      - name: order_purchase_timestamp
+        data_tests:
+          - not_null
+      - name: order_purchase_date
+        data_tests:
+          - not_null
+      - name: is_delivered
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: is_canceled
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: stg_order_items
+    description: "Clean order item lines. Grain is order_id plus order_item_id."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['order_id', 'order_item_id']
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: order_item_id
+        data_tests:
+          - not_null
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+      - name: seller_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_sellers')
+                field: seller_id
+      - name: price
+        data_tests:
+          - not_null
+          - non_negative
+      - name: freight_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: item_total_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: stg_order_payments
+    description: "Clean order payment events. Grain is order_id plus payment_sequential."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['order_id', 'payment_sequential']
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: payment_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: stg_order_reviews
+    description: "Clean order reviews. One order can have more than one review record."
+    columns:
+      - name: review_id
+        data_tests:
+          - not_null
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: review_score
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: has_review_comment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: stg_products
+    description: "Clean product dimension source."
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_name
+      - name: product_weight_g
+        data_tests:
+          - non_negative
+      - name: product_volume_cm3
+        data_tests:
+          - non_negative
+
+  - name: stg_sellers
+    description: "Clean seller dimension source."
+    columns:
+      - name: seller_id
+        data_tests:
+          - not_null
+          - unique
+      - name: seller_zip_code_prefix
+      - name: seller_city
+      - name: seller_state
+
+  - name: stg_product_category_name_translation
+    description: "Clean product category translation table."
+    columns:
+      - name: product_category_name
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_name_english
+        data_tests:
+          - not_null

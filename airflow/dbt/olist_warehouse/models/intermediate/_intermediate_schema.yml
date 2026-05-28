@@ -1,0 +1,141 @@
+version: 2
+
+models:
+  - name: int_geolocation_zip
+    description: "Zip-level geolocation aggregate used to enrich customers and sellers."
+    columns:
+      - name: geolocation_zip_code_prefix
+        data_tests:
+          - not_null
+          - unique
+      - name: avg_latitude
+      - name: avg_longitude
+      - name: geolocation_records
+        data_tests:
+          - non_negative
+
+  - name: int_order_items_by_order
+    description: "Order-level rollup of items and freight."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: item_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_item_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_freight_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_total_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: int_payments_by_order
+    description: "Order-level payment rollup."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: payment_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: max_payment_installments
+        data_tests:
+          - non_negative
+
+  - name: int_reviews_by_order
+    description: "Order-level review rollup."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: review_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: latest_review_score
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: has_review_comment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: int_orders_enriched
+    description: "Order-level enriched model with item, payment, review and delivery metrics."
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: order_status
+        data_tests:
+          - not_null
+      - name: order_purchase_date
+        data_tests:
+          - not_null
+      - name: item_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_item_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_freight_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: order_total_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: is_late_delivery
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false

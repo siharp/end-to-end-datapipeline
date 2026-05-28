@@ -1,0 +1,33 @@
+name: 'olist_warehouse'
+version: '1.0.0'
+
+profile: 'olist_warehouse'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+models:
+  olist_warehouse:
+    staging:
+      +materialized: view
+      +tags: ["staging"]
+    intermediate:
+      +materialized: table
+      +tags: ["intermediate"]
+    marts:
+      core:
+        +materialized: table
+        +tags: ["core"]
+      analytics:
+        +materialized: table
+        +tags: ["analytics"]
+        
+    

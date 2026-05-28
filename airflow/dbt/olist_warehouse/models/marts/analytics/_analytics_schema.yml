@@ -1,0 +1,243 @@
+version: 2
+
+models:
+  - name: mart_sales_daily
+    description: "Daily sales KPI table for dashboard trend charts. Grain is one row per sales_date."
+    columns:
+      - name: sales_date
+        data_tests:
+          - not_null
+          - unique
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: gross_revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: avg_order_value
+        data_tests:
+          - non_negative
+
+  - name: mart_sales_monthly
+    description: "Monthly sales KPI table for dashboard overview and trend analysis. Grain is one row per sales_month."
+    columns:
+      - name: sales_month
+        data_tests:
+          - not_null
+          - unique
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: customers_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: delivery_rate
+      - name: late_delivery_rate
+
+  - name: mart_customer_rfm
+    description: "Customer RFM and segmentation table. Grain is one row per customer_unique_id."
+    columns:
+      - name: customer_unique_id
+        data_tests:
+          - not_null
+          - unique
+      - name: recency_days
+        data_tests:
+          - not_null
+          - non_negative
+      - name: total_orders
+        data_tests:
+          - not_null
+          - non_negative
+      - name: monetary_value
+        data_tests:
+          - not_null
+          - non_negative
+      - name: customer_segment
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['champion', 'loyal_customer', 'at_risk', 'one_time_buyer', 'regular_customer']
+
+  - name: mart_product_performance
+    description: "Product-level performance table for top product and category dashboards."
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_name_english
+        data_tests:
+          - not_null
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_seller_performance
+    description: "Seller-level performance table for seller ranking dashboards."
+    columns:
+      - name: seller_id
+        data_tests:
+          - not_null
+          - unique
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: late_item_lines_count
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_delivery_performance
+    description: "Delivery KPI table by month and customer geography."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['sales_month', 'customer_state', 'customer_region']
+    columns:
+      - name: sales_month
+        data_tests:
+          - not_null
+      - name: customer_state
+        data_tests:
+          - not_null
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: late_orders_count
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_review_performance
+    description: "Review score distribution by month."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['review_month', 'review_score']
+    columns:
+      - name: review_month
+        data_tests:
+          - not_null
+      - name: review_score
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: reviews_count
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_payment_performance
+    description: "Payment KPI table by month and payment type."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['sales_month', 'payment_type']
+    columns:
+      - name: sales_month
+        data_tests:
+          - not_null
+      - name: payment_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['credit_card', 'boleto', 'voucher', 'debit_card', 'not_defined']
+      - name: payment_value
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_geo_sales_state
+    description: "State-level sales table for map or regional dashboard."
+    columns:
+      - name: customer_state
+        data_tests:
+          - not_null
+          - unique
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+
+  - name: mart_executive_kpi
+    description: "Single-row KPI table for executive dashboard cards."
+    columns:
+      - name: kpi_grain
+        data_tests:
+          - not_null
+          - unique
+      - name: orders_count
+        data_tests:
+          - not_null
+          - non_negative
+      - name: revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: delivery_rate
+      - name: cancellation_rate
+      - name: late_delivery_rate
+
+  - name: mart_dashboard_sales_detail
+    description: "Item-grain wide table for BI exploration. Do not sum order-level payment_value from this table without deduplicating order_id."
+    data_tests:
+      - unique_combination:
+          arguments:
+            combination_of_columns: ['order_id', 'order_item_id']
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+      - name: order_item_id
+        data_tests:
+          - not_null
+      - name: order_purchase_date
+        data_tests:
+          - not_null
+      - name: product_id
+        data_tests:
+          - not_null
+      - name: seller_id
+        data_tests:
+          - not_null
+      - name: item_revenue
+        data_tests:
+          - not_null
+          - non_negative
+      - name: item_total_value
+        data_tests:
+          - not_null
+          - non_negative
