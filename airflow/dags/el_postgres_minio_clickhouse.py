@@ -10,7 +10,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import get_current_context
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from notifications.telegram import notify_failure, notify_success
+from notifications.email import dag_failure_callback, dag_success_callback
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ tables_to_process = [
 default_args = {
     'retries': 3,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': notify_failure,
+    'on_failure_callback': dag_failure_callback,
 }
 
 
@@ -39,7 +39,7 @@ default_args = {
     catchup=False,
     tags=['postgres', 'minio', 'clickhouse'],
     max_active_tasks=2,
-    on_success_callback=notify_success,
+    on_success_callback=dag_success_callback,
     default_args=default_args
 )
 def el_postgres_minio_clickhouse():

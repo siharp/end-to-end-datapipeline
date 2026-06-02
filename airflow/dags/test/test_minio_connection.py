@@ -1,13 +1,16 @@
 from airflow.decorators import dag, task
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from datetime import datetime
+from notifications.email import dag_failure_callback, dag_success_callback
 
 
 @dag(
     dag_id='test_minio_connection',
     start_date=datetime(2024, 1, 1),
     schedule='@once',
-    catchup=False
+    catchup=False,
+    on_failure_callback=dag_failure_callback,
+    on_success_callback=dag_success_callback,
 )
 def test_minio():
     @task
